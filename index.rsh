@@ -2,21 +2,27 @@
 
 const MUInt = Maybe(UInt);
 
-// const [ isHand, ROCK, PAPER, SCISSORS ] = makeEnum(3);
-// const [ isOutcome, B_WINS, DRAW, A_WINS ] = makeEnum(3);
+const [ isNum, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, TEN ] = makeEnum(10);
+const [ isOutcome, Raffler_WINS, Raffler_LOSSES ] = makeEnum(2);
 
-// const winner = (handA, handB) => (handA + (4 - handB)) % 3;
+const winner = (winningNum, chosenNum) => {
+  if (winningNum == chosenNum) {
+    return Raffler_WINS;
+  } else {
+    return Raffler_LOSSES;
+  }
+}
 
-// assert(winner(ROCK, PAPER) == B_WINS);
-// assert(winner(PAPER, ROCK) == A_WINS);
-// assert(winner(ROCK, ROCK) == DRAW);
+assert(winner(1, 1) == Raffler_WINS);
+assert(winner(2, 2) == Raffler_WINS);
+assert(winner(3, 3) == Raffler_WINS);
+assert(winner(1, 2) == Raffler_LOSSES);
+assert(winner(1, 3) == Raffler_LOSSES);
+assert(winner(2, 1) == Raffler_LOSSES);
 
-// forall(UInt, handA =>
-//     forall(UInt, handB =>
-//         assert(isOutcome(winner(handA, handB)))));
-
-// forall(UInt, (hand) => 
-//     assert(winner(hand, hand) == DRAW));
+forall(UInt, winningNum => 
+  forall(UInt, chosenNum => 
+    assert(isOutcome(winner(winningNum, chosenNum)))));
 
 export const main = Reach.App(() => {
   setOptions({ untrustworthyMaps: true });
@@ -73,8 +79,7 @@ export const main = Reach.App(() => {
 
   Host.interact.ready();
 
-  const end = lastConsensusTime() + numTickets;
-  const [winner, number] = parallelReduce([Host, winningNum])
+  const [raffleWinner, number] = parallelReduce([Host, winningNum])
     .invariant(balance(nftId) == amt)
     .while(number > 0)
     .api_(Raffler.showRaffle, (ticket) => {
@@ -87,10 +92,10 @@ export const main = Reach.App(() => {
       }];
     })
 
-    transfer(amt, nftId).to(winner);
+    transfer(amt, nftId).to(raffleWinner);
     transfer(balance()).to(Host);
 
-    Host.interact.seeOutcome(winner, number);
+    Host.interact.seeOutcome(raffleWinner, number);
 
   commit();
   exit();
