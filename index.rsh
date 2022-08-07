@@ -7,18 +7,18 @@ const [ isOutcome, RAFFLER_WINS, RAFFLER_LOSSES ] = makeEnum(2);
 
 const winner = (winningNum, chosenNum) => {
   if (winningNum == chosenNum) {
-    return Raffler_WINS;
+    return RAFFLER_WINS;
   } else {
-    return Raffler_LOSSES;
+    return RAFFLER_LOSSES;
   }
 }
 
-assert(winner(1, 1) == Raffler_WINS);
-assert(winner(2, 2) == Raffler_WINS);
-assert(winner(3, 3) == Raffler_WINS);
-assert(winner(1, 2) == Raffler_LOSSES);
-assert(winner(1, 3) == Raffler_LOSSES);
-assert(winner(2, 1) == Raffler_LOSSES);
+assert(winner(1, 1) == RAFFLER_WINS);
+assert(winner(2, 2) == RAFFLER_WINS);
+assert(winner(3, 3) == RAFFLER_WINS);
+assert(winner(1, 2) == RAFFLER_LOSSES);
+assert(winner(1, 3) == RAFFLER_LOSSES);
+assert(winner(2, 1) == RAFFLER_LOSSES);
 
 forall(UInt, winningNum => 
   forall(UInt, chosenNum => 
