@@ -3,7 +3,7 @@
 const MUInt = Maybe(UInt);
 
 const [ isNum, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, TEN ] = makeEnum(10);
-const [ isOutcome, Raffler_WINS, Raffler_LOSSES ] = makeEnum(2);
+const [ isOutcome, RAFFLER_WINS, RAFFLER_LOSSES ] = makeEnum(2);
 
 const winner = (winningNum, chosenNum) => {
   if (winningNum == chosenNum) {
