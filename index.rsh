@@ -1,74 +1,97 @@
 'reach 0.1';
 
-const amt = 1;
+const MUInt = Maybe(UInt);
 
+// const [ isHand, ROCK, PAPER, SCISSORS ] = makeEnum(3);
+// const [ isOutcome, B_WINS, DRAW, A_WINS ] = makeEnum(3);
 
-const Shared = {
-  getNum: Fun([UInt], UInt),
-  seeOutcome: Fun([UInt], Null),
-}
+// const winner = (handA, handB) => (handA + (4 - handB)) % 3;
+
+// assert(winner(ROCK, PAPER) == B_WINS);
+// assert(winner(PAPER, ROCK) == A_WINS);
+// assert(winner(ROCK, ROCK) == DRAW);
+
+// forall(UInt, handA =>
+//     forall(UInt, handB =>
+//         assert(isOutcome(winner(handA, handB)))));
+
+// forall(UInt, (hand) => 
+//     assert(winner(hand, hand) == DRAW));
 
 export const main = Reach.App(() => {
-  const A = Participant('Alice', {
-    ...Shared,
+  setOptions({ untrustworthyMaps: true });
+
+  const Host = Participant('Host', {
     ...hasRandom,
-    // Specify Alice's interact interface here
-    startRaffle: Fun([], Object({
+    // Specify Host's interact interface here
+    getRaffle: Fun([], Object({
       nftId: Token,
       numTickets: UInt,
     })),
     seeHash: Fun([Digest], Null),
+    ready: Fun([], Null),
+    seeTicket: Fun([Address, UInt], Null),
+    seeOutcome: Fun([Address, UInt], Null),
+    getNum: Fun([UInt], UInt),
   });
 
-  const B = Participant('Bob', {
-    // Specify Bob's interact interface here
-    ...Shared,
-    showNum: Fun([UInt], Null),
-    seeWinner: Fun([UInt], Null),
+  const Raffler = API('Raffler', {
+    showRaffle: Fun([UInt], UInt),
+    // showRaffle: Fun([UInt], Tuple(Address, UInt)),
   });
   init();
 
-  A.only(() => {
-    const { nftId, numTickets } = declassify(interact.startRaffle());  
+  Host.publish();
+
+  const raffleNumber = new Map(UInt);
+  commit();
+
+
+  Host.only(() => {
+    const { nftId, numTickets } = declassify(interact.getRaffle());  
     const _winningNum = interact.getNum(numTickets);
-    const [_commitA, _saltA] = makeCommitment(interact, _winningNum);
-    const commitA = declassify(_commitA);
+    const [_commitHost, _saltHost] = makeCommitment(interact, _winningNum);
+    const commitHost = declassify(_commitHost);
   })
   // The first one to publish deploys the contract
-  A.publish(nftId, numTickets, commitA)
-  A.interact.seeHash(commitA);
+  Host.publish(nftId, numTickets, commitHost)
+  const amt = 1;
+  Host.interact.seeHash(commitHost);
   commit();
-  A.pay([[amt, nftId]]);
-  commit();
+  Host.pay([[amt, nftId]]);
+  assert(balance(nftId) == amt, "balance of NFT is wrong");
+  commit()
 
-  unknowable(B, A(_winningNum, _saltA));
-  // The second one to publish always attaches
+  // unknowable(Raffler, Host(_winningNum, _saltHost));
 
-  B.only(() => {
-    const myNum = declassify(interact.getNum(numTickets));
-    interact.showNum(myNum);
-  })
-
-  B.publish(myNum);
-  commit();
-
-  A.only(() => {
-    const saltA = declassify(_saltA);
+  Host.only(() => {
+    const saltHost= declassify(_saltHost);
     const winningNum = declassify(_winningNum);
   })
-A.publish(saltA, winningNum);
-checkCommitment(commitA, saltA, winningNum);
+  Host.publish(saltHost, winningNum);
+  checkCommitment(commitHost, saltHost, winningNum);
 
-B.interact.seeWinner(winningNum);
+  Host.interact.ready();
 
-const outcome = (myNum == winningNum ? 1 : 0);
-transfer(amt, nftId).to(outcome == 0 ? A : B);
+  const end = lastConsensusTime() + numTickets;
+  const [winner, number] = parallelReduce([Host, winningNum])
+    .invariant(balance(nftId) == amt)
+    .while(number > 0)
+    .api_(Raffler.showRaffle, (ticket) => {
+      check(ticket > 0, "Raffle number is too low");
+      return [ticket, (notify) => {
+        notify(ticket);
+        const who = this; 
+        Host.interact.seeTicket(who, ticket); 
+        return [who, ticket];
+      }];
+    })
 
-each([A, B], () => {
-  interact.seeOutcome(outcome);
-});
+    transfer(amt, nftId).to(winner);
+    transfer(balance()).to(Host);
 
-commit();
-  // write your program here
+    Host.interact.seeOutcome(winner, number);
+
+  commit();
   exit();
 });
